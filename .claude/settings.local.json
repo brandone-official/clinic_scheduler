@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(firebase --version)",
+      "Bash(firebase projects:list)",
+      "Bash(firebase projects:create *)",
+      "Bash(firebase use *)",
+      "Bash(firebase hosting:sites:list *)",
+      "Bash(npm run *)",
+      "Bash(npm install *)",
+      "Bash(firebase deploy *)",
+      "Bash(node scripts/generate-og.mjs)"
+    ]
+  }
+}
