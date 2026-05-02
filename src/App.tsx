@@ -52,7 +52,125 @@ import {
   MONTHLY_DECO_SVGS
 } from './constants';
 
+function MobileBlock() {
+  const LIME = '#C8D84A';
+  const PURPLE = '#3D2C8D';
+
+  return (
+    <>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700&display=swap');`}</style>
+      <div style={{
+        position: 'fixed',
+        top: 0, left: 0, right: 0, bottom: 0,
+        width: '100vw',
+        height: '100vh',
+        background: PURPLE,
+        zIndex: 9999,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        overflow: 'hidden',
+        fontFamily: "'Montserrat', sans-serif",
+        boxSizing: 'border-box',
+        padding: '2rem',
+      }}>
+
+        {/* 우측 상단 라임 삼각형 */}
+        <div style={{
+          position: 'absolute',
+          top: 0,
+          right: 0,
+          width: 0,
+          height: 0,
+          borderStyle: 'solid',
+          borderWidth: '0 120px 120px 0',
+          borderColor: `transparent ${LIME} transparent transparent`,
+        }} />
+
+        {/* 스마트폰 SVG 아이콘 */}
+        <svg
+          width="56" height="56"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="white"
+          strokeWidth="1.3"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          style={{ display: 'block', marginBottom: '2rem' }}
+        >
+          <rect x="5" y="2" width="14" height="20" rx="2" ry="2" />
+          <line x1="12" y1="18" x2="12.01" y2="18" />
+        </svg>
+
+        {/* 1번 문구: 흰색 bold */}
+        <p style={{
+          margin: '0 0 0.9rem 0',
+          fontSize: '1.1rem',
+          fontWeight: 700,
+          color: '#ffffff',
+          lineHeight: 1.55,
+          textAlign: 'center',
+          wordBreak: 'keep-all',
+        }}>
+          이 페이지는<br />인쇄·PDF 저장 전용<br />서비스입니다.
+        </p>
+
+        {/* 2번 문구: 라임 */}
+        <p style={{
+          margin: 0,
+          fontSize: '0.875rem',
+          fontWeight: 500,
+          color: LIME,
+          lineHeight: 1.8,
+          textAlign: 'center',
+          wordBreak: 'keep-all',
+        }}>
+          PC 브라우저에서 접속하시면<br />
+          정상적으로 이용하실 수 있습니다.
+        </p>
+
+        {/* 하단 브랜딩: BY BRAND ONE. */}
+        <p style={{
+          position: 'absolute',
+          bottom: '1.5rem',
+          left: 0,
+          right: 0,
+          textAlign: 'center',
+          margin: 0,
+          fontSize: '0.65rem',
+          fontWeight: 700,
+          letterSpacing: '0.18em',
+          color: '#ffffff',
+        }}>
+          BY BRA<span style={{ color: LIME }}>ND</span>
+          {' '}
+          <span style={{ color: LIME }}>O</span>NE.
+        </p>
+
+      </div>
+    </>
+  );
+}
+
+function isMobileDevice() {
+  return window.innerWidth < 768;
+}
+
 export default function App() {
+  const [isMobile, setIsMobile] = useState(isMobileDevice);
+
+  useEffect(() => {
+    const onResize = () => setIsMobile(isMobileDevice());
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  if (isMobile) return <MobileBlock />;
+  return <AppContent />;
+}
+
+function AppContent() {
   const [currentDate, setCurrentDate] = useState(new Date(2026, 4, 1)); // Default to May 2026
   const [dayStatuses, setDayStatuses] = useState<Record<string, DayStatus>>({});
   const [dragStart, setDragStart] = useState<string | null>(null);
