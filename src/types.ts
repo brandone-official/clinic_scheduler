@@ -49,3 +49,18 @@ export interface Holiday {
   date: string;
   name: string;
 }
+
+export interface DecoSvg {
+  key: string;
+  label: string;
+  svg: string;
+}
+
+export interface DecoElement {
+  id: string;
+  svgKey: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}

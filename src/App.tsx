@@ -16,37 +16,40 @@ import {
   addDays,
   endOfDay
 } from 'date-fns';
-import { 
-  Settings2, 
-  Printer, 
-  Palette, 
-  Type, 
-  Calendar as CalendarIcon, 
-  ChevronLeft, 
+import {
+  Settings2,
+  Printer,
+  Palette,
+  Type,
+  Calendar as CalendarIcon,
+  ChevronLeft,
   ChevronRight,
   HelpCircle,
   X,
   Info,
   Download,
-  Loader2
+  Loader2,
+  Sparkles
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
 import { toPng } from 'html-to-image';
 import { jsPDF } from 'jspdf';
 
-import { 
-  StatusType, 
-  DayStatus, 
-  ClinicSettings, 
+import {
+  StatusType,
+  DayStatus,
+  ClinicSettings,
   ThemeId,
-  Holiday
+  Holiday,
+  DecoElement
 } from './types';
-import { 
-  HOLIDAYS, 
-  THEMES, 
-  FONT_OPTIONS, 
-  RAINBOW_PALETTE
+import {
+  HOLIDAYS,
+  THEMES,
+  FONT_OPTIONS,
+  RAINBOW_PALETTE,
+  MONTHLY_DECO_SVGS
 } from './constants';
 
 export default function App() {
@@ -56,7 +59,7 @@ export default function App() {
   const isDraggingRef = useRef(false);
   const [selectedStatus, setSelectedStatus] = useState<StatusType | 'reset'>('closed');
   const [selectedColor, setSelectedColor] = useState<string>(RAINBOW_PALETTE[0]);
-  const [selectedElement, setSelectedElement] = useState<'clinicName' | 'title' | 'subtitle' | 'calendar' | 'footer' | 'orientation' | 'theme' | null>('orientation');
+  const [selectedElement, setSelectedElement] = useState<'clinicName' | 'title' | 'subtitle' | 'calendar' | 'footer' | 'orientation' | 'theme' | 'deco' | null>('orientation');
   const [isExporting, setIsExporting] = useState(false);
   
   const [settings, setSettings] = useState<ClinicSettings>(() => {
@@ -97,7 +100,26 @@ export default function App() {
   const [customInput, setCustomInput] = useState({ text: '', color: RAINBOW_PALETTE[0] });
   const [guideTarget, setGuideTarget] = useState<string | null>(null);
   const [dynamicHolidays, setDynamicHolidays] = useState<Holiday[]>([]);
+  const [decoElements, setDecoElements] = useState<DecoElement[]>([]);
+  const [selectedDecoId, setSelectedDecoId] = useState<string | null>(null);
+  const [activeDecoSeason, setActiveDecoSeason] = useState<'봄'|'여름'|'가을'|'겨울'>(() => {
+    const m = new Date(2026, 4, 1).getMonth() + 1;
+    if (m >= 3 && m <= 5) return '봄';
+    if (m >= 6 && m <= 8) return '여름';
+    if (m >= 9 && m <= 11) return '가을';
+    return '겨울';
+  });
   const previewRef = useRef<HTMLDivElement>(null);
+  const decoInteractionRef = useRef<{
+    type: 'move' | 'resize-se' | 'resize-sw' | 'resize-nw';
+    id: string;
+    startX: number;
+    startY: number;
+    startElX: number;
+    startElY: number;
+    startElW: number;
+    startElH: number;
+  } | null>(null);
 
   const GUIDES: Record<string, { 
     title: string; 
@@ -166,6 +188,16 @@ export default function App() {
         { type: 'li', text: '직접 수정: 구체적인 사유나 연락처를 덧붙여 완성도를 높이세요.', highlight: '직접 수정', color: 'rose' },
       ],
       tip: '끝에 "건강한 하루 되십시오" 같은 고객 지향적 표현을 추가해 전문성을 높이세요.'
+    },
+    deco: {
+      title: '꾸밈 요소 활용 가이드',
+      sections: [
+        { type: 'p', text: '봄·여름·가을·겨울 계절 테마 요소를 활용해 안내문에 계절감을 더할 수 있습니다.' },
+        { type: 'li', text: '자유 배치: 요소를 드래그해 원하는 위치로 이동하고, 오른쪽 하단 핸들로 크기를 조절하세요.', highlight: '드래그', color: 'emerald' },
+        { type: 'li', text: '배경 장식 구조: 꾸밈 요소는 항상 텍스트·캘린더 콘텐츠 뒤에 깔려 가독성을 방해하지 않습니다.', highlight: '콘텐츠 뒤에 깔려' },
+        { type: 'li', text: '선택 및 삭제: 요소를 클릭해 선택하면 파란 테두리가 표시되며, X 버튼으로 삭제할 수 있습니다.', highlight: 'X 버튼으로 삭제', color: 'rose' },
+      ],
+      tip: '요소를 너무 많이 넣으면 가독성이 떨어집니다. 1~2개를 용지 여백에 배치하는 것을 권장합니다.'
     }
   };
 
@@ -255,13 +287,17 @@ export default function App() {
 
   const handleMouseDown = (e: React.MouseEvent, dateStr: string) => {
     e.stopPropagation();
-    setSelectedElement('calendar');
+    if (selectedElement !== 'calendar') {
+      setSelectedElement('calendar');
+      return;
+    }
     setDragStart(dateStr);
     isDraggingRef.current = false;
     toggleDayStatus(dateStr);
   };
 
   const handleMouseEnter = (dateStr: string) => {
+    if (selectedElement !== 'calendar') return;
     if (dragStart) {
       isDraggingRef.current = true;
       toggleDayStatus(dateStr, selectedStatus);
@@ -269,11 +305,49 @@ export default function App() {
   };
 
   const handleMouseUp = () => {
+    decoInteractionRef.current = null;
     setDragStart(null);
-    // Keep isDraggingRef.current true for a moment so click handler can check it
     setTimeout(() => {
       isDraggingRef.current = false;
     }, 50);
+  };
+
+  const handleDecoMouseDown = (e: React.MouseEvent, id: string, type: 'move' | 'resize-se' | 'resize-sw' | 'resize-nw') => {
+    e.stopPropagation();
+    e.preventDefault();
+    const el = decoElements.find(d => d.id === id);
+    if (!el) return;
+    decoInteractionRef.current = {
+      type, id,
+      startX: e.clientX, startY: e.clientY,
+      startElX: el.x, startElY: el.y,
+      startElW: el.width, startElH: el.height
+    };
+    setSelectedDecoId(id);
+  };
+
+  const handleGlobalMouseMove = (e: React.MouseEvent) => {
+    if (!decoInteractionRef.current) return;
+    const { type, id, startX, startY, startElX, startElY, startElW, startElH } = decoInteractionRef.current;
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+    setDecoElements(prev => prev.map(el => {
+      if (el.id !== id) return el;
+      if (type === 'move') return { ...el, x: startElX + dx, y: startElY + dy };
+      if (type === 'resize-se') {
+        return { ...el, width: Math.max(30, startElW + dx), height: Math.max(30, startElH + dy) };
+      }
+      if (type === 'resize-sw') {
+        const newW = Math.max(30, startElW - dx);
+        return { ...el, x: startElX + startElW - newW, width: newW, height: Math.max(30, startElH + dy) };
+      }
+      if (type === 'resize-nw') {
+        const newW = Math.max(30, startElW - dx);
+        const newH = Math.max(30, startElH - dy);
+        return { ...el, x: startElX + startElW - newW, y: startElY + startElH - newH, width: newW, height: newH };
+      }
+      return el;
+    }));
   };
 
   useEffect(() => {
@@ -655,8 +729,110 @@ export default function App() {
     </div>
   );
 
+  const renderDecoProperties = () => {
+    const seasonConfig: Array<{
+      label: '봄'|'여름'|'가을'|'겨울';
+      monthKey: number;
+      activeClass: string;
+    }> = [
+      { label: '봄',  monthKey: 3,  activeClass: 'bg-pink-500/20 text-pink-300 border-pink-400/40' },
+      { label: '여름', monthKey: 6,  activeClass: 'bg-green-500/20 text-green-300 border-green-400/40' },
+      { label: '가을', monthKey: 9,  activeClass: 'bg-orange-500/20 text-orange-300 border-orange-400/40' },
+      { label: '겨울', monthKey: 12, activeClass: 'bg-blue-500/20 text-blue-300 border-blue-400/40' },
+    ];
+    const currentConfig = seasonConfig.find(s => s.label === activeDecoSeason)!;
+    const palette = MONTHLY_DECO_SVGS[currentConfig.monthKey] || [];
+    const allDecos = Object.values(MONTHLY_DECO_SVGS).flat();
+
+    return (
+      <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+        {/* 계절 탭 */}
+        <div className="space-y-3">
+          <label className="text-[14px] font-black text-slate-100 uppercase tracking-widest block">요소 삽입</label>
+          <div className="grid grid-cols-4 gap-1 p-1 bg-[#1a1a1a] rounded-xl">
+            {seasonConfig.map(s => (
+              <button
+                key={s.label}
+                onClick={() => setActiveDecoSeason(s.label)}
+                className={cn(
+                  "py-2 text-[12px] font-black rounded-lg border transition-all",
+                  activeDecoSeason === s.label
+                    ? s.activeClass
+                    : "border-transparent text-slate-500 hover:text-slate-300"
+                )}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* SVG 팔레트 */}
+        <div className="grid grid-cols-3 gap-2">
+          {palette.map(item => (
+            <button
+              key={item.key}
+              onClick={() => {
+                const newEl: DecoElement = {
+                  id: `deco-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+                  svgKey: item.key,
+                  x: 10,
+                  y: 10,
+                  width: 80,
+                  height: 80
+                };
+                setDecoElements(prev => [...prev, newEl]);
+                setSelectedDecoId(newEl.id);
+              }}
+              className="aspect-square bg-[#363636] rounded-xl border border-[#4a4a4a] hover:border-yellow-400/50 hover:bg-[#3f3f3f] transition-all p-2 flex flex-col items-center justify-center gap-1"
+            >
+              <div className="w-10 h-10" dangerouslySetInnerHTML={{ __html: item.svg }} />
+              <span className="text-[10px] font-bold text-slate-300">{item.label}</span>
+            </button>
+          ))}
+        </div>
+
+        {decoElements.length > 0 && (
+          <div className="space-y-3">
+            <label className="text-[14px] font-black text-slate-100 uppercase tracking-widest block">추가된 요소</label>
+            <div className="space-y-2">
+              {decoElements.map(el => {
+                const info = allDecos.find(s => s.key === el.svgKey);
+                return (
+                  <div
+                    key={el.id}
+                    className={cn(
+                      "flex items-center gap-3 p-3 rounded-lg border transition-all cursor-pointer",
+                      selectedDecoId === el.id
+                        ? "border-yellow-400/50 bg-yellow-400/5"
+                        : "border-[#3f3f3f] bg-[#1a1a1a] hover:border-[#555]"
+                    )}
+                    onClick={() => setSelectedDecoId(el.id)}
+                  >
+                    <div className="w-8 h-8 shrink-0" dangerouslySetInnerHTML={{ __html: info?.svg || '' }} />
+                    <span className="text-[13px] font-bold text-slate-200 flex-1">{info?.label || el.svgKey}</span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDecoElements(prev => prev.filter(d => d.id !== el.id));
+                        if (selectedDecoId === el.id) setSelectedDecoId(null);
+                      }}
+                      className="p-1.5 hover:bg-red-500/20 rounded transition-all text-slate-400 hover:text-red-400"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
-    <div className="h-screen bg-[#1e1e1e] text-slate-300 flex flex-col font-sans overflow-hidden select-none" onMouseUp={handleMouseUp}>
+    <div className="h-screen bg-[#1e1e1e] text-slate-300 flex flex-col font-sans overflow-hidden select-none" onMouseUp={handleMouseUp} onMouseMove={handleGlobalMouseMove}>
       <header className="relative h-14 bg-[#2c2c2c] border-b border-[#3f3f3f] flex items-center justify-end px-6 shrink-0 z-30">
         <div className="absolute inset-x-0 h-full flex items-center justify-center pointer-events-none">
           <div className="flex items-center gap-4 pointer-events-auto">
@@ -726,6 +902,7 @@ export default function App() {
               { id: 'subtitle', label: '서브 타이틀', icon: <Type className="w-4 h-4" />, iconColor: 'text-pink-400' },
               { id: 'calendar', label: '진료 일정', icon: <CalendarIcon className="w-4 h-4" />, iconColor: 'text-blue-400' },
               { id: 'footer', label: '하단 문구', icon: <Type className="w-4 h-4" />, iconColor: 'text-slate-300' },
+              { id: 'deco', label: '꾸밈 설정', icon: <Sparkles className="w-4 h-4" />, iconColor: 'text-yellow-400' },
             ].map(item => (
               <div key={item.id} className="group relative">
                 <button onClick={() => setSelectedElement(prev => prev === item.id ? null : item.id as any)}
@@ -751,10 +928,11 @@ export default function App() {
           <div className="relative group/canvas">
             <div id="print-area" ref={previewRef}
               className={cn(settings.paperOrientation === 'portrait' ? 'a4-portrait' : 'a4-landscape',
-                'print-container shadow-[0_0_100px_rgba(0,0,0,0.5)] transition-all duration-300 flex flex-col bg-white overflow-hidden')}
-              style={{ fontFamily: settings.fontFamily, padding: settings.paperOrientation === 'landscape' ? '10mm 15mm 5mm 15mm' : '15mm' }}>
+                'print-container shadow-[0_0_100px_rgba(0,0,0,0.5)] transition-all duration-300 flex flex-col bg-white overflow-hidden relative isolate')}
+              style={{ fontFamily: settings.fontFamily, padding: settings.paperOrientation === 'landscape' ? '10mm 15mm 5mm 15mm' : '15mm' }}
+              onClick={() => setSelectedDecoId(null)}>
               
-              <div className="flex-none">
+              <div className="flex-none relative" style={{ zIndex: 2 }}>
                 <div onClick={(e) => { e.stopPropagation(); setSelectedElement(prev => prev === 'clinicName' ? null : 'clinicName'); }}
                   className={cn("text-center transition-all cursor-pointer hover:bg-blue-50/50 rounded p-1 -m-1 relative group/elem", selectedElement === 'clinicName' && "ring-2 ring-blue-500 ring-inset")}
                   style={{ fontSize: `${settings.clinicNameSize}px`, color: activeTheme.primary, fontWeight: settings.clinicNameWeight, minHeight: settings.clinicName ? 'auto' : '1.5em' }}>
@@ -801,9 +979,9 @@ export default function App() {
                 if (isDraggingRef.current) return;
                 setSelectedElement(prev => prev === 'calendar' ? null : 'calendar'); 
               }}
-                className={cn("flex-1 flex flex-col border-2 rounded-2xl overflow-hidden shadow-sm h-full cursor-default transition-all relative z-10",
-                  selectedElement === 'calendar' ? "ring-4 ring-blue-500 ring-opacity-50" : "ring-0")} 
-                style={{ borderColor: activeTheme.primary }}>
+                className={cn("flex-1 flex flex-col border-2 rounded-2xl overflow-hidden bg-white shadow-sm h-full cursor-default transition-all relative",
+                  selectedElement === 'calendar' ? "ring-4 ring-blue-500 ring-opacity-50" : "ring-0")}
+                style={{ borderColor: activeTheme.primary, zIndex: 2 }}>
                 <div className={cn("calendar-grid border-b-2", settings.paperOrientation === 'landscape' ? "py-1.5" : "py-3")} 
                   style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', backgroundColor: activeTheme.headerBg, borderColor: activeTheme.primary }}>
                   {['일', '월', '화', '수', '목', '금', '토'].map((day, idx) => (
@@ -862,11 +1040,65 @@ export default function App() {
                 </div>
               </div>
 
+              {decoElements.map(el => {
+                const allDecos = Object.values(MONTHLY_DECO_SVGS).flat();
+                const info = allDecos.find(s => s.key === el.svgKey);
+                if (!info) return null;
+                const isSelected = selectedDecoId === el.id;
+                return (
+                  <div
+                    key={el.id}
+                    className="absolute inset-0 pointer-events-none"
+                    style={{ zIndex: isSelected ? 10 : 1 }}
+                  >
+                    <div
+                      className="absolute"
+                      style={{ left: el.x, top: el.y, width: el.width, height: el.height, pointerEvents: 'auto', cursor: 'move' }}
+                      onMouseDown={(e) => handleDecoMouseDown(e, el.id, 'move')}
+                      onClick={(e) => { e.stopPropagation(); setSelectedDecoId(prev => prev === el.id ? null : el.id); }}
+                    >
+                      <div dangerouslySetInnerHTML={{ __html: info.svg }} style={{ width: '100%', height: '100%' }} />
+                      {isSelected && !isExporting && (
+                        <>
+                          <div className="absolute inset-0 border-2 border-blue-500 pointer-events-none rounded-sm" />
+                          <button
+                            className="absolute -top-3 -right-3 w-6 h-6 bg-red-500 rounded-full text-white flex items-center justify-center shadow-md"
+                            onMouseDown={(e) => e.stopPropagation()}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDecoElements(prev => prev.filter(d => d.id !== el.id));
+                              setSelectedDecoId(null);
+                            }}
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                          <div
+                            className="absolute -top-1.5 -left-1.5 w-4 h-4 bg-blue-500 rounded-sm cursor-nw-resize"
+                            onMouseDown={(e) => handleDecoMouseDown(e, el.id, 'resize-nw')}
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                          <div
+                            className="absolute -bottom-1.5 -left-1.5 w-4 h-4 bg-blue-500 rounded-sm cursor-sw-resize"
+                            onMouseDown={(e) => handleDecoMouseDown(e, el.id, 'resize-sw')}
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                          <div
+                            className="absolute -bottom-1.5 -right-1.5 w-4 h-4 bg-blue-500 rounded-sm cursor-se-resize"
+                            onMouseDown={(e) => handleDecoMouseDown(e, el.id, 'resize-se')}
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        </>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+
               {settings.footerText && (
                 <div onClick={(e) => { e.stopPropagation(); setSelectedElement(prev => prev === 'footer' ? null : 'footer'); }}
                   className={cn("flex-none", settings.paperOrientation === 'landscape' ? "mt-4" : "mt-8", "text-center leading-relaxed whitespace-pre-wrap transition-all cursor-pointer hover:bg-blue-50/50 rounded p-2 -m-1",
                     selectedElement === 'footer' && "ring-2 ring-blue-500 ring-inset")}
-                  style={{ fontSize: `${settings.footerSize}px`, fontWeight: settings.footerWeight, color: '#334155' }}>
+                  style={{ fontSize: `${settings.footerSize}px`, fontWeight: settings.footerWeight, color: '#334155', position: 'relative', zIndex: 2 }}>
                   {(() => {
                     const statusColors: Record<string, string> = { '휴진': '#ef4444', '단축진료': '#f59e0b', '정상진료': '#3b82f6' };
                     (Object.values(dayStatuses) as DayStatus[]).forEach(s => { if (s.status === 'custom' && s.customText) statusColors[s.customText] = s.customColor || '#10b981'; });
@@ -898,7 +1130,8 @@ export default function App() {
                       title: '메인 타이틀',
                       subtitle: '서브 타이틀',
                       calendar: '진료 일정',
-                      footer: '하단 문구'
+                      footer: '하단 문구',
+                      deco: '꾸밈 설정'
                     };
                     return labels[selectedElement] || selectedElement;
                   })()}
@@ -921,6 +1154,7 @@ export default function App() {
             {selectedElement === 'subtitle' && renderSubtitleProperties()}
             {selectedElement === 'calendar' && renderCalendarProperties()}
             {selectedElement === 'footer' && renderFooterProperties()}
+            {selectedElement === 'deco' && renderDecoProperties()}
             {!selectedElement && (
               <div className="h-full flex flex-col items-center text-slate-200 gap-8 mt-16 px-10 text-center animate-in fade-in zoom-in-95 duration-500">
                 <div className="w-20 h-20 rounded-full bg-[#363636] flex items-center justify-center shadow-xl border border-[#444]"><Info className="w-10 h-10 text-blue-500" /></div>
