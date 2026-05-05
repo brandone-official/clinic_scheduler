@@ -35,6 +35,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
 import { toPng } from 'html-to-image';
 import { jsPDF } from 'jspdf';
+import { signOut } from 'firebase/auth';
+import { brandonAuth } from './lib/brandoneFire';
 
 import {
   StatusType,
@@ -986,8 +988,8 @@ function AppContent() {
                 </>
               )}
             </button>
-            <button 
-              onClick={handleSavePDF} 
+            <button
+              onClick={handleSavePDF}
               disabled={isExporting}
               className={cn(
                 "flex items-center gap-2 px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded text-xs font-bold transition-all shadow-lg active:scale-95",
@@ -1005,6 +1007,13 @@ function AppContent() {
               )}
             </button>
           </div>
+          <div className="h-4 w-px bg-slate-700 mx-2" />
+          <button
+            onClick={() => signOut(brandonAuth)}
+            className="px-3 py-1.5 text-slate-400 hover:text-white text-xs font-medium transition-colors rounded hover:bg-[#3f3f3f]"
+          >
+            로그아웃
+          </button>
         </div>
       </header>
 
