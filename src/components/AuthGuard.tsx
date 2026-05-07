@@ -13,25 +13,32 @@ export default function AuthGuard({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
 
   useEffect(() => {
-    return onAuthStateChanged(brandonAuth, (currentUser) => {
+    let unsubFirestore: (() => void) | undefined
+
+    const unsubAuth = onAuthStateChanged(brandonAuth, (currentUser) => {
+      // 이전 Firestore 구독 즉시 해제
+      unsubFirestore?.()
+      unsubFirestore = undefined
+
       if (!currentUser) {
         setUser(null)
         setState('login')
         return
       }
+
       setUser(currentUser)
+      // auth 콜백 안에서 즉시 Firestore 구독 — React 렌더 사이클 사이 gap 제거
+      unsubFirestore = onSnapshot(doc(brandonDb, 'users', currentUser.uid), (snap) => {
+        const isApproved = snap.exists() && snap.data()?.status === 'approved'
+        setState(isApproved ? 'allowed' : 'denied')
+      })
     })
+
+    return () => {
+      unsubAuth()
+      unsubFirestore?.()
+    }
   }, [])
-
-  useEffect(() => {
-    if (!user) return
-
-    // brandone-lab Firestore에서 uid 문서의 승인 여부 확인
-    return onSnapshot(doc(brandonDb, 'users', user.uid), (snap) => {
-      const isApproved = snap.exists() && snap.data()?.status === 'approved'
-      setState(isApproved ? 'allowed' : 'denied')
-    })
-  }, [user])
 
   if (state === 'loading') {
     return (
