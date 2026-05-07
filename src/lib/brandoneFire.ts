@@ -1,5 +1,5 @@
 import { initializeApp, getApps } from 'firebase/app'
-import { getAuth } from 'firebase/auth'
+import { getAuth, setPersistence, browserLocalPersistence } from 'firebase/auth'
 import { getFirestore } from 'firebase/firestore'
 
 const config = {
@@ -15,3 +15,6 @@ const brandonApp = getApps().find(a => a.name === 'brandone') ?? initializeApp(c
 
 export const brandonAuth = getAuth(brandonApp)
 export const brandonDb = getFirestore(brandonApp)
+
+// Named app에서도 세션이 localStorage에 유지되도록 명시적으로 설정
+setPersistence(brandonAuth, browserLocalPersistence)
