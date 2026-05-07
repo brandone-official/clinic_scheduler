@@ -1,5 +1,5 @@
 import { useState, useEffect, type ReactNode } from 'react'
-import { onAuthStateChanged, signOut, User } from 'firebase/auth'
+import { onAuthStateChanged, signInWithCustomToken, signOut, User } from 'firebase/auth'
 import { doc, onSnapshot } from 'firebase/firestore'
 import { brandonAuth, brandonDb } from '../lib/brandoneFire'
 import BrandoneLogin from './BrandoneLogin'
@@ -13,26 +13,44 @@ export default function AuthGuard({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
 
   useEffect(() => {
+    // URL에서 token 추출 후 즉시 제거 (보안)
+    const params = new URLSearchParams(window.location.search)
+    const customToken = params.get('token')
+    if (customToken) {
+      params.delete('token')
+      const newSearch = params.toString()
+      const newUrl = window.location.pathname + (newSearch ? '?' + newSearch : '') + window.location.hash
+      window.history.replaceState(null, '', newUrl)
+    }
+
     let unsubFirestore: (() => void) | undefined
 
     const unsubAuth = onAuthStateChanged(brandonAuth, (currentUser) => {
-      // 이전 Firestore 구독 즉시 해제
       unsubFirestore?.()
       unsubFirestore = undefined
 
       if (!currentUser) {
-        setUser(null)
-        setState('login')
+        // 커스텀 토큰 로그인 진행 중이면 loading 유지
+        if (!customToken) {
+          setUser(null)
+          setState('login')
+        }
         return
       }
 
       setUser(currentUser)
-      // auth 콜백 안에서 즉시 Firestore 구독 — React 렌더 사이클 사이 gap 제거
       unsubFirestore = onSnapshot(doc(brandonDb, 'users', currentUser.uid), (snap) => {
         const isApproved = snap.exists() && snap.data()?.status === 'approved'
         setState(isApproved ? 'allowed' : 'denied')
       })
     })
+
+    // 커스텀 토큰으로 자동 로그인
+    if (customToken) {
+      signInWithCustomToken(brandonAuth, customToken).catch(() => {
+        setState('login')
+      })
+    }
 
     return () => {
       unsubAuth()
