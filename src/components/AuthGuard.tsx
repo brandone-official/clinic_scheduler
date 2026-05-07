@@ -49,12 +49,12 @@ export default function AuthGuard({ children }: { children: ReactNode }) {
   }
 
   if (state === 'login') return <BrandoneLogin />
-  if (state === 'denied') return <NoAccess />
+  if (state === 'denied') return <NoAccess user={user} />
 
   return <>{children}</>
 }
 
-function NoAccess() {
+function NoAccess({ user }: { user: User | null }) {
   return (
     <div style={{ minHeight: '100vh', background: '#ffffff', display: 'flex', flexDirection: 'column' }}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700&family=Noto+Sans+KR:wght@400;500;600;700&display=swap');`}</style>
@@ -83,9 +83,14 @@ function NoAccess() {
             <p style={{ margin: '0 0 0.6rem', fontSize: '1.05rem', fontWeight: 700, color: '#1a1a1a', lineHeight: 1.5 }}>
               브랜드원 랩 승인이 필요한 서비스입니다.
             </p>
-            <p style={{ margin: 0, fontSize: '0.83rem', fontWeight: 400, color: '#888888', lineHeight: 1.7, wordBreak: 'keep-all' }}>
-              brandone-lab.web.app 에서<br />가입 신청 후 이용해주세요.
+            <p style={{ margin: '0 0 0.5rem', fontSize: '0.83rem', fontWeight: 400, color: '#888888', lineHeight: 1.7, wordBreak: 'keep-all' }}>
+              승인된 브랜드원 랩 계정으로 로그인해주세요.
             </p>
+            {user?.email && (
+              <p style={{ margin: 0, fontSize: '0.78rem', fontWeight: 500, color: '#3D1F8F', lineHeight: 1.5 }}>
+                현재 계정: {user.email}
+              </p>
+            )}
           </div>
 
           {/* 버튼 그룹 */}
@@ -123,14 +128,14 @@ function NoAccess() {
                 fontSize: '0.9rem',
                 fontWeight: 500,
                 fontFamily: "'Noto Sans KR', sans-serif",
-                color: '#888888',
+                color: '#6B7280',
                 background: 'transparent',
                 border: '1.5px solid #E5E7EB',
                 borderRadius: '12px',
                 cursor: 'pointer',
               }}
             >
-              로그아웃
+              다른 계정으로 시도
             </button>
           </div>
 
