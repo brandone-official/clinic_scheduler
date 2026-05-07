@@ -12,7 +12,12 @@
       "Bash(node scripts/generate-og.mjs)",
       "Bash(npx tsc *)",
       "Bash(npx vite *)",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(npx kill-port *)",
+      "Bash(taskkill /F /IM node.exe)",
+      "Bash(firebase --project brandone-lab auth:export --format=json)"
     ]
   }
 }

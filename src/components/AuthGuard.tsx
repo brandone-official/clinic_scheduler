@@ -4,7 +4,6 @@ import { doc, onSnapshot } from 'firebase/firestore'
 import { brandonAuth, brandonDb } from '../lib/brandoneFire'
 import BrandoneLogin from './BrandoneLogin'
 
-const APP_KEY = 'clinic-guide'
 const BRANDONE_URL = 'https://brandone-lab.web.app'
 
 type AuthState = 'loading' | 'login' | 'allowed' | 'denied'
@@ -27,10 +26,10 @@ export default function AuthGuard({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!user) return
 
+    // brandone-lab Firestore에서 uid 문서의 승인 여부 확인
     return onSnapshot(doc(brandonDb, 'users', user.uid), (snap) => {
-      const data = snap.data()
-      const hasAccess = data?.appAccess?.[APP_KEY] === true
-      setState(hasAccess ? 'allowed' : 'denied')
+      const isApproved = snap.exists() && snap.data()?.status === 'approved'
+      setState(isApproved ? 'allowed' : 'denied')
     })
   }, [user])
 
@@ -82,10 +81,10 @@ function NoAccess() {
           {/* 안내 메시지 */}
           <div style={{ fontFamily: "'Noto Sans KR', sans-serif", textAlign: 'center' }}>
             <p style={{ margin: '0 0 0.6rem', fontSize: '1.05rem', fontWeight: 700, color: '#1a1a1a', lineHeight: 1.5 }}>
-              접근 권한이 없습니다.
+              브랜드원 랩 승인이 필요한 서비스입니다.
             </p>
             <p style={{ margin: 0, fontSize: '0.83rem', fontWeight: 400, color: '#888888', lineHeight: 1.7, wordBreak: 'keep-all' }}>
-              브랜드원 랩에서 해당 앱의<br />이용 권한을 신청해주세요.
+              brandone-lab.web.app 에서<br />가입 신청 후 이용해주세요.
             </p>
           </div>
 
