@@ -956,7 +956,7 @@ function AppContent() {
       <header className="relative h-14 bg-[#2c2c2c] border-b border-[#3f3f3f] flex items-center justify-end px-6 shrink-0 z-30">
         <div className="absolute inset-x-0 h-full flex items-center justify-center pointer-events-none">
           <div className="flex items-center gap-4 pointer-events-auto">
-            <img src="/header-logo.png" alt="Miri" className="h-8 object-contain" />
+            <img src="/header-logo.png?v=2" alt="Miri" className="h-8 object-contain" />
             <div className="h-4 w-px bg-slate-700 mx-2" />
             <div className="flex items-center gap-1">
               <span className="text-sm font-bold text-slate-200">{format(currentDate, 'yyyy. MM')}</span>
