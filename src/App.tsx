@@ -173,7 +173,7 @@ export default function App() {
 }
 
 function AppContent() {
-  const [currentDate, setCurrentDate] = useState(new Date(2026, 4, 1)); // Default to May 2026
+  const [currentDate, setCurrentDate] = useState(new Date());
   const [dayStatuses, setDayStatuses] = useState<Record<string, DayStatus>>({});
   const [dragStart, setDragStart] = useState<string | null>(null);
   const isDraggingRef = useRef(false);
@@ -223,7 +223,7 @@ function AppContent() {
   const [decoElements, setDecoElements] = useState<DecoElement[]>([]);
   const [selectedDecoId, setSelectedDecoId] = useState<string | null>(null);
   const [activeDecoSeason, setActiveDecoSeason] = useState<'봄'|'여름'|'가을'|'겨울'>(() => {
-    const m = new Date(2026, 4, 1).getMonth() + 1;
+    const m = new Date().getMonth() + 1;
     if (m >= 3 && m <= 5) return '봄';
     if (m >= 6 && m <= 8) return '여름';
     if (m >= 9 && m <= 11) return '가을';
