@@ -956,10 +956,7 @@ function AppContent() {
       <header className="relative h-14 bg-[#2c2c2c] border-b border-[#3f3f3f] flex items-center justify-end px-6 shrink-0 z-30">
         <div className="absolute inset-x-0 h-full flex items-center justify-center pointer-events-none">
           <div className="flex items-center gap-4 pointer-events-auto">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-900/20"><Palette className="w-4 h-4 text-white" /></div>
-              <span className="text-sm font-black tracking-tight text-white uppercase">우리 한의원 진료 안내문 만들기</span>
-            </div>
+            <img src="/header-logo.png" alt="Miri" className="h-8 object-contain" />
             <div className="h-4 w-px bg-slate-700 mx-2" />
             <div className="flex items-center gap-1">
               <span className="text-sm font-bold text-slate-200">{format(currentDate, 'yyyy. MM')}</span>
